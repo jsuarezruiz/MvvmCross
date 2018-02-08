@@ -1,5 +1,15 @@
 # MvvmCross site changelog
 
+## Mvxtheme 1.4 (2017-07-29)
+
+* Add member list table.
+
+* Make mobile friendly.
+
+## Mvxtheme 1.3 (2017-07-28)
+
+* Add Hackfest page
+
 ## Mvxtheme 1.2 (2017-05-26)
 
 New features:

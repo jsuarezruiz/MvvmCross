@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CoreGraphics;
@@ -115,9 +115,10 @@ namespace MvvmCross.iOS.Views.Presenters
             if (viewController is IMvxTabBarViewController tabBarController)
             {
                 TabBarViewController = tabBarController;
-                SetWindowRootViewController(viewController);
 
-                CloseMasterNavigationController();
+                // set root
+                SetupWindowRootNavigation(viewController, attribute);
+
                 CleanupModalViewControllers();
                 CloseSplitViewController();
 
@@ -128,31 +129,38 @@ namespace MvvmCross.iOS.Views.Presenters
             if (viewController is IMvxSplitViewController splitController)
             {
                 SplitViewController = splitController;
+
+                // set root
+                SetupWindowRootNavigation(viewController, attribute);
+
+                CleanupModalViewControllers();
+                CloseTabBarViewController();
+
+                return;
+            }
+
+            // set root initiating stack navigation or just a plain controller
+            SetupWindowRootNavigation(viewController, attribute);
+
+            CleanupModalViewControllers();
+            CloseTabBarViewController();
+            CloseSplitViewController();
+        }
+
+        protected void SetupWindowRootNavigation(UIViewController viewController, MvxRootPresentationAttribute attribute)
+        {
+            if (attribute.WrapInNavigationController)
+            {
+                MasterNavigationController = CreateNavigationController(viewController);
+
+                SetWindowRootViewController(MasterNavigationController);
+            }
+            else
+            {
                 SetWindowRootViewController(viewController);
 
                 CloseMasterNavigationController();
-                CleanupModalViewControllers();
-                CloseTabBarViewController();
-
-                return;
             }
-
-            // check if viewController is trying to initialize a navigation stack
-            if (attribute.WrapInNavigationController)
-            {
-                viewController = CreateNavigationController(viewController);
-                MasterNavigationController = viewController as MvxNavigationController;
-                SetWindowRootViewController(viewController);
-
-                CleanupModalViewControllers();
-                CloseTabBarViewController();
-                CloseSplitViewController();
-
-                return;
-            }
-
-            // last scenario: display the plain viewController as root
-            SetWindowRootViewController(viewController);
         }
 
         protected virtual void ShowChildViewController(
@@ -185,7 +193,6 @@ namespace MvvmCross.iOS.Views.Presenters
             if (MasterNavigationController != null)
             {
                 PushViewControllerIntoStack(MasterNavigationController, viewController, attribute.Animated);
-
                 return;
             }
 
@@ -374,12 +381,15 @@ namespace MvvmCross.iOS.Views.Presenters
             if (MasterNavigationController == null)
                 return;
 
-            foreach (var item in MasterNavigationController.ViewControllers)
-                item.DidMoveToParentViewController(null);
+            if (MasterNavigationController.ViewControllers != null)
+            {
+                foreach (var item in MasterNavigationController.ViewControllers)
+                    item.DidMoveToParentViewController(null);
+            }
             MasterNavigationController = null;
         }
 
-        protected void CloseModalViewController(UIViewController modalController)
+        protected virtual void CloseModalViewController(UIViewController modalController)
         {
             if (modalController == null)
                 return;
@@ -407,8 +417,12 @@ namespace MvvmCross.iOS.Views.Presenters
             if (TabBarViewController == null)
                 return;
 
-            foreach (var item in (TabBarViewController as UITabBarController).ViewControllers)
-                item.DidMoveToParentViewController(null);
+            if (TabBarViewController is UITabBarController tabsController
+                && tabsController.ViewControllers != null)
+            {
+                foreach (var item in tabsController.ViewControllers)
+                    item.DidMoveToParentViewController(null);
+            }
             TabBarViewController = null;
         }
 
@@ -417,8 +431,12 @@ namespace MvvmCross.iOS.Views.Presenters
             if (SplitViewController == null)
                 return;
 
-            foreach (var item in (SplitViewController as UISplitViewController).ViewControllers)
-                item.DidMoveToParentViewController(null);
+            if (SplitViewController is UISplitViewController splitController
+               && splitController.ViewControllers != null)
+            {
+                foreach (var item in splitController.ViewControllers)
+                    item.DidMoveToParentViewController(null);
+            }
             SplitViewController = null;
         }
 
@@ -427,7 +445,6 @@ namespace MvvmCross.iOS.Views.Presenters
             foreach (var v in _window.Subviews)
                 v.RemoveFromSuperview();
 
-            _window.AddSubview(controller.View);
             _window.RootViewController = controller;
         }
 
